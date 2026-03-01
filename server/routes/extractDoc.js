@@ -21,13 +21,39 @@ router.post('/', upload.single('image'), async (req, res) => {
         const mimeType = req.file.mimetype || 'image/jpeg';
 
         if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key_here') {
+            const cleanFields = {
+                applicant_name: 'Demo User',
+                address: '123, Demo Village, Demo District, Demo State - 400001',
+                id_number: '1234 5678 9012'
+            };
+
+            let currentState = {};
+            try {
+                if (req.body.currentState) {
+                    currentState = JSON.parse(req.body.currentState);
+                }
+            } catch (e) { }
+
+            const updatedState = { ...currentState, ...cleanFields };
+            const missingFields = Object.keys(REQUIRED_FIELDS).filter(k => !updatedState[k] || !String(updatedState[k]).trim());
+
+            const nextField = missingFields[0];
+            let nextQuestion;
+            if (Object.keys(cleanFields).length > 0) {
+                nextQuestion = nextField
+                    ? `Ab kripya bataiye: ${REQUIRED_FIELDS[nextField].hindi}`
+                    : 'Bahut accha! Sab jaankari mil gayi hai. Ab aap "Generate Final Form" button dabayein.';
+            } else {
+                nextQuestion = nextField
+                    ? REQUIRED_FIELDS[nextField].hindi
+                    : 'Sab jaankari mil gayi hai! Ab aap form bana sakte hain.';
+            }
+
             // Mock response for demo
             return res.json({
-                extractedFields: {
-                    applicant_name: 'Demo User',
-                    address: '123, Demo Village, Demo District, Demo State - 400001',
-                    id_number: '1234 5678 9012'
-                },
+                extractedFields: cleanFields,
+                updatedState,
+                nextQuestion,
                 rawText: '[Demo mode] Document text extraction simulated.',
                 confidence: 'medium'
             });
@@ -93,8 +119,32 @@ Only include fields you can clearly read. Do not guess.`;
             });
         }
 
+        let currentState = {};
+        try {
+            if (req.body.currentState) {
+                currentState = JSON.parse(req.body.currentState);
+            }
+        } catch (e) { }
+
+        const updatedState = { ...currentState, ...cleanFields };
+        const missingFields = Object.keys(REQUIRED_FIELDS).filter(k => !updatedState[k] || !String(updatedState[k]).trim());
+
+        const nextField = missingFields[0];
+        let nextQuestion;
+        if (Object.keys(cleanFields).length > 0) {
+            nextQuestion = nextField
+                ? `Ab kripya bataiye: ${REQUIRED_FIELDS[nextField].hindi}`
+                : 'Bahut accha! Sab jaankari mil gayi hai. Ab aap "Generate Final Form" button dabayein.';
+        } else {
+            nextQuestion = nextField
+                ? REQUIRED_FIELDS[nextField].hindi
+                : 'Sab jaankari mil gayi hai! Ab aap form bana sakte hain.';
+        }
+
         res.json({
             extractedFields: cleanFields,
+            updatedState,
+            nextQuestion,
             rawText: parsed.raw_text || '',
             confidence: parsed.confidence || 'medium'
         });

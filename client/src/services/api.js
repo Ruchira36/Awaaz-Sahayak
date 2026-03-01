@@ -10,9 +10,12 @@ export const processTranscript = async (transcript, currentState) => {
     return response.data;
 };
 
-export const extractDocument = async (imageFile) => {
+export const extractDocument = async (imageFile, currentState) => {
     const formData = new FormData();
     formData.append('image', imageFile);
+    if (currentState) {
+        formData.append('currentState', JSON.stringify(currentState));
+    }
     const response = await axios.post(`${API_BASE}/extract-doc`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     });

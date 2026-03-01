@@ -139,25 +139,32 @@ function App() {
         setChatHistory(prev => [...prev, { role: 'user', message: '[Document photo uploaded]' }]);
 
         try {
-            const result = await extractDocument(file);
+            const result = await extractDocument(file, formStateRef.current);
 
             if (result.extractedFields) {
-                setFormState(prev => {
-                    const updated = { ...prev };
-                    Object.entries(result.extractedFields).forEach(([key, val]) => {
-                        if (val && val.trim()) {
-                            updated[key] = val;
-                        }
-                    });
-
-                    // Recalculate fields based on updated state
-                    const newFilled = ALL_FIELDS.filter(k => updated[k] && updated[k].trim());
-                    const newMissing = ALL_FIELDS.filter(k => !updated[k] || !updated[k].trim());
+                if (result.updatedState) {
+                    setFormState(result.updatedState);
+                    const newFilled = ALL_FIELDS.filter(k => result.updatedState[k] && result.updatedState[k].trim());
+                    const newMissing = ALL_FIELDS.filter(k => !result.updatedState[k] || !result.updatedState[k].trim());
                     setFilledFields(newFilled);
                     setMissingFields(newMissing);
+                } else {
+                    setFormState(prev => {
+                        const updated = { ...prev };
+                        Object.entries(result.extractedFields).forEach(([key, val]) => {
+                            if (val && val.trim()) {
+                                updated[key] = val;
+                            }
+                        });
 
-                    return updated;
-                });
+                        const newFilled = ALL_FIELDS.filter(k => updated[k] && updated[k].trim());
+                        const newMissing = ALL_FIELDS.filter(k => !updated[k] || !updated[k].trim());
+                        setFilledFields(newFilled);
+                        setMissingFields(newMissing);
+
+                        return updated;
+                    });
+                }
 
                 const extractedStr = Object.entries(result.extractedFields)
                     .filter(([, v]) => v && v.trim())
@@ -165,8 +172,9 @@ function App() {
                     .join(', ');
 
                 const docMsg = `Bahut accha! Document se yeh jaankari mili: ${extractedStr}.`;
-                setChatHistory(prev => [...prev, { role: 'assistant', message: docMsg }]);
-                speakText(docMsg);
+                const finalMsg = result.nextQuestion ? `${docMsg} ${result.nextQuestion}` : docMsg;
+                setChatHistory(prev => [...prev, { role: 'assistant', message: finalMsg }]);
+                speakText(finalMsg);
             }
 
             if (result.rawText) {
